@@ -262,6 +262,8 @@
       if (typeof data !== 'object' || data === null) data = {};
       data.boxTabUrl = target;
       data.boxTabTime = Date.now();
+      data.justLoggedIn = true;
+      data.loginTime = Date.now();
       window.name = JSON.stringify(data);
     } catch (e) {}
 

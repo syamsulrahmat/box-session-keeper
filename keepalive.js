@@ -23,13 +23,11 @@
   }
 
   function getTabStoredUrl() {
-    // Priority 1: sessionStorage (strictly scoped to this single tab)
     try {
       const sessionUrl = sessionStorage.getItem('box_tab_deep_url');
       if (isDeepBoxUrl(sessionUrl)) return sessionUrl;
     } catch (e) {}
 
-    // Priority 2: window.name (persists across same-site navigations within this tab)
     try {
       if (window.name && window.name.includes('boxTabUrl')) {
         const data = JSON.parse(window.name);
@@ -43,12 +41,10 @@
   function saveTabUrl(url) {
     if (!isDeepBoxUrl(url)) return;
 
-    // Save to this tab's sessionStorage
     try {
       sessionStorage.setItem('box_tab_deep_url', url);
     } catch (e) {}
 
-    // Save to this tab's window.name
     try {
       let data = {};
       if (window.name) {
@@ -63,8 +59,20 @@
 
   function trackCurrentTab() {
     const current = window.location.href;
+    const isRoot = /\/folder\/0\/?(\?.*)?$/.test(current) || current.endsWith('app.box.com/') || window.location.pathname === '/';
+
     if (isDeepBoxUrl(current)) {
       saveTabUrl(current);
+    } else if (isRoot) {
+      // If user intentionally navigated to the root or homepage, clear the old deep URL so they aren't trapped
+      try {
+        sessionStorage.removeItem('box_tab_deep_url');
+        if (window.name && window.name.includes('boxTabUrl')) {
+          const data = JSON.parse(window.name);
+          delete data.boxTabUrl;
+          window.name = JSON.stringify(data);
+        }
+      } catch (e) {}
     }
   }
 
@@ -90,21 +98,34 @@
   };
   window.addEventListener('popstate', () => setTimeout(trackCurrentTab, 100));
 
-  // 2. TAB-ISOLATED BOUNCE PREVENTION
-  // If Box drops THIS specific tab at root /folder/0 right after login, restore THIS tab's folder
-  (function handleRootBounce() {
+  // 2. STRICT ONE-TIME BOUNCE RESTORE (ONLY RIGHT AFTER AUTO-LOGIN)
+  // If Box dropped user at /folder/0 as a login artifact, restore the deep folder ONCE.
+  // Never blocks intentional user navigation to the homepage or /folder/0!
+  (function handlePostLoginBounce() {
     const current = window.location.href;
-    if (/\/folder\/0\/?(\?.*)?$/.test(current) || current.endsWith('app.box.com/')) {
-      const mySavedUrl = getTabStoredUrl();
-      if (mySavedUrl) {
-        console.log('[Box Auto-Login] Restoring this tab to its own folder:', mySavedUrl);
-        window.location.replace(mySavedUrl);
-      }
+    const isRoot = /\/folder\/0\/?(\?.*)?$/.test(current) || current.endsWith('app.box.com/') || window.location.pathname === '/';
+
+    if (isRoot) {
+      try {
+        if (window.name && window.name.includes('justLoggedIn')) {
+          const data = JSON.parse(window.name);
+          const elapsed = Date.now() - (data.loginTime || 0);
+
+          // Clear the one-time flag immediately so future navigation to root is free
+          delete data.justLoggedIn;
+          delete data.loginTime;
+          window.name = JSON.stringify(data);
+
+          if (elapsed < 15000 && isDeepBoxUrl(data.boxTabUrl)) {
+            console.log('[Box Auto-Login] Post-login root bounce intercepted. Restoring:', data.boxTabUrl);
+            window.location.replace(data.boxTabUrl);
+          }
+        }
+      } catch (e) {}
     }
   })();
 
   // 3. DRAG-AND-DROP & UPLOAD PROTECTION
-  // Pause any background activity while user is dragging files into the browser
   window.addEventListener('dragenter', () => { isDraggingOrUploading = true; }, true);
   window.addEventListener('dragover', () => { isDraggingOrUploading = true; }, true);
   window.addEventListener('drop', () => {
@@ -117,7 +138,6 @@
   }, true);
 
   // 4. SILENT, NON-DESTRUCTIVE SESSION HEARTBEAT
-  // Never, EVER call window.location.reload() from background fetch responses!
   function silentHeartbeat() {
     if (!isExtensionValid()) return;
     if (isDraggingOrUploading) return;
@@ -125,7 +145,6 @@
     chrome.storage.local.get(['boxEnabled'], (cfg) => {
       if (!isExtensionValid() || cfg.boxEnabled === false) return;
 
-      // HEAD request to Box Web index keeps cookies and session timer alive
       fetch('/index.php', {
         method: 'HEAD',
         credentials: 'include',
@@ -134,9 +153,7 @@
       .then(() => {
         console.log('[Box Auto-Login] Heartbeat refreshed session timer.');
       })
-      .catch(() => {
-        // Silently ignore network hiccups; never reload the user's active page!
-      });
+      .catch(() => {});
     });
   }
 
@@ -151,10 +168,9 @@
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       trackCurrentTab();
-      // Only do a silent background ping without reload triggers
       silentHeartbeat();
     }
   });
 
-  console.log('[Box Auto-Login] Keep-Alive active (Tab-Isolated & Drag-and-Drop Protected).');
+  console.log('[Box Auto-Login] Keep-Alive active (Clean Root Navigation & Upload Protected).');
 })();
