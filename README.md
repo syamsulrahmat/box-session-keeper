@@ -1,6 +1,6 @@
 # Box Session Keeper & Auto-Login
 
-> A lightweight Chromium extension and Tampermonkey userscript that prevents Box idle logouts, isolates deep folder paths per tab, and auto-restores sessions seamlessly.
+> A lightweight Chromium extension for Chrome, Edge, and Brave that prevents Box idle logouts, isolates deep folder paths per tab, protects file uploads, and auto-restores sessions seamlessly.
 
 ---
 
@@ -16,31 +16,20 @@
 
 ---
 
-## 🚀 Installation
-
-### Option 1: Chrome / Microsoft Edge Extension (Recommended)
+## 🚀 Installation (Chrome / Microsoft Edge / Brave)
 
 1. Clone or download this repository to your computer:
    ```bash
    git clone https://github.com/syamsulrahmat/box-session-keeper.git
    ```
-2. Open your browser and navigate to:
+2. Open your browser and navigate to the extensions page:
    * **Chrome:** `chrome://extensions`
    * **Edge:** `edge://extensions`
+   * **Brave:** `brave://extensions`
 3. Toggle on **Developer mode** in the top-right corner.
 4. Click **Load unpacked** (top-left).
-5. Select the `box-auto-login` folder.
+5. Select the downloaded `box-auto-login` folder.
 6. Click the extension icon in your browser toolbar to enter your Box email, password, and toggle it **ON**.
-
----
-
-### Option 2: Tampermonkey Userscript
-
-If you prefer using Tampermonkey or Violentmonkey:
-1. Install [Tampermonkey](https://www.tampermonkey.net/) from your browser's store.
-2. Open `box-userscript.user.js` in this repository (or create a new script in Tampermonkey).
-3. Replace the `BOX_EMAIL` and `BOX_PASSWORD` placeholders with your Box credentials.
-4. Save the script (**Ctrl + S**).
 
 ---
 
@@ -53,4 +42,4 @@ If you prefer using Tampermonkey or Violentmonkey:
 
 ## 📄 License
 
-MIT License. Feel free to use and modify for your office or personal workflow.
+MIT License.
